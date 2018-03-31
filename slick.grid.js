@@ -30,7 +30,20 @@ if (typeof Slick === "undefined") {
 
 (function ($) {
   // Slick.Grid
-  $.extend(true, window, {
+  var extend = function (destination, source) {
+    var toString = Object.prototype.toString,
+        objTest = toString.call({});
+    for (var property in source) {
+        if (source[property] && objTest == toString.call(source[property])) {
+            destination[property] = destination[property] || {};
+            extend(destination[property], source[property]);
+        } else {
+            destination[property] = source[property];
+        }
+    }
+    return destination;
+  };
+  extend(window, {
     Slick: {
       Grid: SlickGrid
     }
@@ -217,13 +230,16 @@ if (typeof Slick === "undefined") {
     // Initialization
 
     function init() {
-      if (container instanceof jQuery) { 
+      if (container instanceof HTMLElement) { 
         $container = container; 
-      } else { 
-        $container = $(container); 
+      } else if (typeof container === "string") {
+        if (container.length > 0 && container[0] === '#') {
+          $container = document.getElementById(container.slice(1));
+        }
       }
+
       if ($container.length < 1) {
-        throw new Error("SlickGrid requires a valid container, " + container + " does not exist in the DOM.");
+        throw new Error("SlickGrid requires a valid container that is either an HTMLELement or an ID selector (#myElement). " + container + " does not exist in the DOM.");
       }
 
       cacheCssForHiddenInit();
@@ -231,7 +247,9 @@ if (typeof Slick === "undefined") {
       // calculate these only once and share between grid instances
       maxSupportedCssHeight = maxSupportedCssHeight || getMaxSupportedCssHeight();
 
-      options = $.extend({}, defaults, options);
+      var defaultOptions = extend({}, defaults);
+      options = extend(defaultOptions, options);
+
       validateAndEnforceOptions();
       columnDefaults.width = options.defaultColumnWidth;
 
@@ -257,16 +275,22 @@ if (typeof Slick === "undefined") {
         "cancelCurrentEdit": cancelCurrentEdit
       };
 
-      $container
-          .empty()
-          .css("overflow", "hidden")
-          .css("outline", 0)
-          .addClass(uid)
-          .addClass("ui-widget");
+      $container.innerHTML = "";
+      $container.style.overflow = "hidden";
+      $container.style.outline = 0;
+      if ($container.classList)
+        $container.classList.add(uid);
+      else
+        $container.className += ' ' + uid;
+
+      if ($container.classList)
+        $container.classList.add("ui-widget");
+      else
+        $container.className += ' ' + "ui-widget";
 
       // set up a positioning container if needed
-      if (!/relative|absolute|fixed/.test($container.css("position"))) {
-        $container.css("position", "relative");
+      if (!/relative|absolute|fixed/.test($container.style.position)) {
+        $container.style.position = "relative";
       }
 
       $focusSink = $("<div tabIndex='0' hideFocus style='position:fixed;width:0;height:0;top:0;left:0;outline:0;'></div>").appendTo($container);
@@ -339,7 +363,7 @@ if (typeof Slick === "undefined") {
       if (!initialized) {
         initialized = true;
 
-        viewportW = parseFloat($.css($container[0], "width", true));
+        viewportW = parseFloat($.css($container, "width", true));
 
         // header columns and cells may have different padding/border skewing width calculations (box-sizing, hello?)
         // calculate the diff so we can set consistent sizes
@@ -367,8 +391,7 @@ if (typeof Slick === "undefined") {
         resizeCanvas();
         bindAncestorScrollEvents();
 
-        $container
-            .on("resize.slickgrid", resizeCanvas);
+        $container.addEventListener("resize.slickgrid", resizeCanvas);
         $viewport
             //.on("click", handleClick)
             .on("scroll", handleScroll);
@@ -414,28 +437,61 @@ if (typeof Slick === "undefined") {
       }
     }
 
+    function getParents(htmlElement){
+      var parents = [],
+      potentialParent = htmlElement.parentNode;
+
+      while(potentialParent && potentialParent.nodeType !== 9){
+        if (potentialParent.nodeType === 1){
+          parents.push(potentialParent);
+        }
+        potentialParent = potentialParent.parentNode;
+      }
+      return parents;
+    }
+
+    function getHiddenElements(htmlElementArray){
+      var hiddenElements = [],
+        elementIsHidden = function(htmlElement){
+          return htmlElement.offsetWidth <= 0 && htmlElement.offsetHeight <= 0;
+        };
+
+      for(var i=0; i<htmlElementArray.length; i++){
+        if(elementIsHidden(htmlElementArray[i])){
+          hiddenElements.push(htmlElementArray[i]);
+        }
+      }
+
+      return hiddenElements;
+    }
+
     function cacheCssForHiddenInit() {
       // handle display:none on container or container parents
-      $hiddenParents = $container.parents().addBack().not(':visible');
-      $hiddenParents.each(function() {
-        var old = {};
-        for ( var name in cssShow ) {
-          old[ name ] = this.style[ name ];
-          this.style[ name ] = cssShow[ name ];
-        }
-        oldProps.push(old);
-      });
+      var parents = getParents($container),
+        cacheHiddenAttrsAndShow = function(htmlElement){
+          var old = {};
+          for (var name in cssShow) {
+            old[name] = htmlElement.style[name];
+            htmlElement.style[name] = cssShow[name];
+          }
+          oldProps.push(old);
+        };
+      parents.push($container);
+      $hiddenParents = getHiddenElements(parents);
+      for(var i=0; i<$hiddenParents.length; i++){
+        cacheHiddenAttrsAndShow($hiddenParents[i]);
+      }
     }
 
     function restoreCssFromHiddenInit() {
       // finish handle display:none on container or container parents
       // - put values back the way they were
-      $hiddenParents.each(function(i) {
+      for(var i=0; i<$hiddenParents.length; i++){
         var old = oldProps[i];
-        for ( var name in cssShow ) {
-          this.style[ name ] = old[ name ];
+        for (var name in cssShow){
+          $hiddenParents[i].style[name] = old[name];
         }
-      });
+      }
     }
 
     function registerPlugin(plugin) {
@@ -1220,11 +1276,15 @@ if (typeof Slick === "undefined") {
       }
 
       unbindAncestorScrollEvents();
-      $container.off(".slickgrid");
+      $container.removeEventListener(".slickgrid");
       removeCssRules();
 
       $canvas.off("draginit dragstart dragend drag");
-      $container.empty().removeClass(uid);
+      $container.innerHTML = "";
+      if ($container.classList)
+        $container.classList.remove(uid);
+      else
+        $container.className = $container.className.replace(new RegExp('(^|\\b)' + uid.split(' ').join('|') + '(\\b|$)', 'gi'), ' ');
     }
 
 
@@ -1579,7 +1639,7 @@ if (typeof Slick === "undefined") {
     }
 
     function getContainerNode() {
-      return $container.get(0);
+      return $container;
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -1931,9 +1991,9 @@ if (typeof Slick === "undefined") {
     }
 
     function getViewportHeight() {
-      return parseFloat($.css($container[0], "height", true)) -
-          parseFloat($.css($container[0], "paddingTop", true)) -
-          parseFloat($.css($container[0], "paddingBottom", true)) -
+      return parseFloat($.css($container, "height", true)) -
+          parseFloat($.css($container, "paddingTop", true)) -
+          parseFloat($.css($container, "paddingBottom", true)) -
           parseFloat($.css($headerScroller[0], "height")) - getVBoxDelta($headerScroller) -
           (options.showTopPanel ? options.topPanelHeight + getVBoxDelta($topPanelScroller) : 0) -
           (options.showHeaderRow ? options.headerRowHeight + getVBoxDelta($headerRowScroller) : 0) -
@@ -1950,7 +2010,7 @@ if (typeof Slick === "undefined") {
       }
 
       numVisibleRows = Math.ceil(viewportH / options.rowHeight);
-      viewportW = parseFloat($.css($container[0], "width", true));
+      viewportW = parseFloat($.css($container, "width", true));
       if (!options.autoHeight) {
         $viewport.height(viewportH);
       }
@@ -3083,7 +3143,7 @@ if (typeof Slick === "undefined") {
 
       currentEditor = new useEditor({
         grid: self,
-        gridPosition: absBox($container[0]),
+        gridPosition: absBox($container),
         position: absBox(activeCellNode),
         container: activeCellNode,
         column: columnDef,
@@ -3169,7 +3229,7 @@ if (typeof Slick === "undefined") {
     }
 
     function getGridPosition() {
-      return absBox($container[0])
+      return absBox($container)
     }
 
     function handleActiveCellPositionChange() {
