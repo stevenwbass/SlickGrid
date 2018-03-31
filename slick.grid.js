@@ -42,6 +42,12 @@ if (typeof Slick === "undefined") {
         }
     }
     return destination;
+  },
+  addClass = function (elem, cls) {
+    if (elem.classList)
+      elem.classList.add(cls);
+    else
+      elem.className += ' ' + cls;
   };
   extend(window, {
     Slick: {
@@ -255,7 +261,8 @@ if (typeof Slick === "undefined") {
 
       columnsById = {};
       for (var i = 0; i < columns.length; i++) {
-        var m = columns[i] = $.extend({}, columnDefaults, columns[i]);
+        var newColumnDefaults = extend({}, columnDefaults);
+        var m = columns[i] = extend(newColumnDefaults, columns[i]);
         columnsById[m.id] = i;
         if (m.minWidth && m.width < m.minWidth) {
           m.width = m.minWidth;
@@ -278,37 +285,70 @@ if (typeof Slick === "undefined") {
       $container.innerHTML = "";
       $container.style.overflow = "hidden";
       $container.style.outline = 0;
-      if ($container.classList)
-        $container.classList.add(uid);
-      else
-        $container.className += ' ' + uid;
-
-      if ($container.classList)
-        $container.classList.add("ui-widget");
-      else
-        $container.className += ' ' + "ui-widget";
+      addClass($container, uid);
+      addClass($container, 'ui-widget');
 
       // set up a positioning container if needed
       if (!/relative|absolute|fixed/.test($container.style.position)) {
         $container.style.position = "relative";
       }
 
-      $focusSink = $("<div tabIndex='0' hideFocus style='position:fixed;width:0;height:0;top:0;left:0;outline:0;'></div>").appendTo($container);
+      $focusSink = document.createElement('div');
+      $focusSink.tabIndex = 0;
+      $focusSink.hideFocus = "hideFocus";
+      $focusSink.style.position = "fixed";
+      $focusSink.style.width = 0;
+      $focusSink.style.height = 0;
+      $focusSink.style.top = 0;
+      $focusSink.style.left = 0;
+      $focusSink.style.outline = 0;
+      $container.appendChild($focusSink);
 
       if (options.createPreHeaderPanel) {
-        $preHeaderPanelScroller = $("<div class='slick-preheader-panel ui-state-default' style='overflow:hidden;position:relative;' />").appendTo($container);
-        $preHeaderPanel = $("<div />").appendTo($preHeaderPanelScroller);
-        $preHeaderPanelSpacer = $("<div style='display:block;height:1px;position:absolute;top:0;left:0;'></div>")
-            .appendTo($preHeaderPanelScroller);
+        $preHeaderPanelScroller = document.createElement('div');
+        addClass($preHeaderPanelScroller, 'slick-preheader-panel');
+        addClass($preHeaderPanelScroller, 'ui-state-default');
+        $preHeaderPanelScroller.style.overflow = "hidden";
+        $preHeaderPanelScroller.style.position = "relative";
+        $container.appendChild($preHeaderPanelScroller);
+        $preHeaderPanel = document.createElement('div');
+        $preHeaderPanelScroller.appendChild($preHeaderPanel);
+        $preHeaderPanelSpacer = document.createElement('div');
+        $preHeaderPanelSpacer.style.display = "block";
+        $preHeaderPanelSpacer.style.height = "1px";
+        $preHeaderPanelSpacer.style.position = "absolute";
+        $preHeaderPanelSpacer.style.top = 0;
+        $preHeaderPanelSpacer.style.left = 0;
+        $preHeaderPanelScroller.appendChild($preHeaderPanelSpacer);
 
         if (!options.showPreHeaderPanel) {
-          $preHeaderPanelScroller.hide();
+          if($preHeaderPanelScroller.style.display && $preHeaderPanelScroller.style.display !== "none")
+            $preHeaderPanelScroller.style.display = "none";
         }
       }
 
-      $headerScroller = $("<div class='slick-header ui-state-default' />").appendTo($container);
-      $headers = $("<div class='slick-header-columns' style='left:-1000px' />").appendTo($headerScroller);
+      $headerScroller = document.createElement('div');
+      if ($headerScroller.classList)
+          $headerScroller.classList.add('slick-header');
+        else
+          $headerScroller.className += ' ' + 'slick-header';
 
+      if ($headerScroller.classList)
+          $headerScroller.classList.add('ui-state-default');
+        else
+          $headerScroller.className += ' ' + 'ui-state-default';
+      $container.appendChild($headerScroller);
+
+      $headers = document.createElement('div');
+      if ($headers.classList)
+          $headers.classList.add('slick-header-columns');
+        else
+          $headers.className += ' ' + 'slick-header-columns';
+      
+      $headers.style.left = "-1000px";
+      $headerScroller.appendChild($headers);
+
+      $headerRowScroller = document.createElement('div');
       $headerRowScroller = $("<div class='slick-headerrow ui-state-default' />").appendTo($container);
       $headerRow = $("<div class='slick-headerrow-columns' />").appendTo($headerRowScroller);
       $headerRowSpacer = $("<div style='display:block;height:1px;position:absolute;top:0;left:0;'></div>")
