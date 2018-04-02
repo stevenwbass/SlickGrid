@@ -44,11 +44,11 @@ if (typeof Slick === "undefined") {
     return destination;
   },
   addClass = function (elem, cls) {
-    if (elem.classList)
-      elem.classList.add(cls);
-    else
-      elem.className += ' ' + cls;
+    elem.classList.add(cls);
   };
+  removeClass = function(elem, cls){
+    elem.classList.remove(cls);
+  }
   extend(window, {
     Slick: {
       Grid: SlickGrid
@@ -375,10 +375,8 @@ if (typeof Slick === "undefined") {
       scrollbarDimensions = scrollbarDimensions || measureScrollbar();
 
       if ($preHeaderPanelSpacer) $preHeaderPanelSpacer.css("width", getCanvasWidth() + scrollbarDimensions.width + "px");
-      $headers.width(getHeadersWidth());
+      $headers.style.width = getHeadersWidth();
       $headerRowSpacer.css("width", getCanvasWidth() + scrollbarDimensions.width + "px");
-
-
 
       if (options.createFooterRow) {
         $footerRowScroller = $("<div class='slick-footerrow ui-state-default' />").appendTo($container);
@@ -392,7 +390,8 @@ if (typeof Slick === "undefined") {
         }
       }
 
-      $focusSink2 = $focusSink.clone().appendTo($container);
+      $focusSink2 = $focusSink.cloneNode(true);
+      $container.appendChild($focusSink2);
 
       if (!options.explicitInitialization) {
         finishInitialization();
@@ -775,39 +774,40 @@ if (typeof Slick === "undefined") {
 
     function createColumnHeaders() {
       function onMouseEnter() {
-        $(this).addClass("ui-state-hover");
+        addClass(this, 'ui-state-hover');
       }
 
       function onMouseLeave() {
-        $(this).removeClass("ui-state-hover");
+        removeClass(this, 'ui-state-hover');
       }
 
-      $headers.find(".slick-header-column")
-        .each(function() {
-          var columnDef = $(this).data("column");
-          if (columnDef) {
-            trigger(self.onBeforeHeaderCellDestroy, {
-              "node": this,
-              "column": columnDef,
-              "grid": self
-            });
-          }
-        });
-      $headers.empty();
-      $headers.width(getHeadersWidth());
+      var headerColumns = $headers.querySelectorAll(".slick-header-column");
+      for(headerColumn in headerColumns){
+        var columnDef = $(headerColumn).data("column");
+        if (columnDef) {
+          trigger(self.onBeforeHeaderCellDestroy, {
+            "node": headerColumn,
+            "column": columnDef,
+            "grid": self
+          });
+        }
+      }
+      
+      $headers.innerHTML = "";
+      $headers.style.width = getHeadersWidth();
 
-      $headerRow.find(".slick-headerrow-column")
-        .each(function() {
-          var columnDef = $(this).data("column");
-          if (columnDef) {
-            trigger(self.onBeforeHeaderRowCellDestroy, {
-              "node": this,
-              "column": columnDef,
-              "grid": self
-            });
-          }
-        });
-      $headerRow.empty();
+      var headerRowColumns = $headerRow[0].querySelectorAll(".slick-headerrow-column");
+      for(headerRowColumn in headerRowColumns){
+        var columnDef = $(headerRowColumn).data("column");
+        if (columnDef) {
+          trigger(self.onBeforeHeaderRowCellDestroy, {
+            "node": headerRowColumn,
+            "column": columnDef,
+            "grid": self
+          });
+        }
+      }
+      $headerRow.innerHTML = "";
 
       if (options.createFooterRow) {
         $footerRow.find(".slick-footerrow-column")
@@ -1469,12 +1469,14 @@ if (typeof Slick === "undefined") {
     function setSortColumns(cols) {
       sortColumns = cols;
       var numberCols = options.numberedMultiColumnSort && sortColumns.length > 1;
-      var headerColumnEls = $headers.children();
-      headerColumnEls
-        .removeClass("slick-header-column-sorted")
-        .find(".slick-sort-indicator")
-          .removeClass("slick-sort-indicator-asc slick-sort-indicator-desc");
-      headerColumnEls
+      var headerColumnEls = $headers.children;
+      for(headerColumnEl in headerColumnEls){
+        removeClass(headerColumnEl, 'slick-header-column-sorted');
+        var sortIndicator = headerColumnEl.querySelector('.slick-sort-indicator');
+        removeClass(sortIndicator, 'slick-sort-indicator');
+        removeClass(sortIndicator, 'slick-sort-indicator-desc');
+      }
+      $(headerColumnEls)
         .find(".slick-sort-indicator-numbered")
           .text('');
 
