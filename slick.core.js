@@ -62,7 +62,7 @@
 
 	/***
 	 * An event object for passing data to event handlers and letting them control propagation.
-	 * <p>This is pretty much identical to how W3C implements events.</p>
+	 * <p>This is pretty much identical to how W3C and jQuery implement events.</p>
 	 * @class EventData
 	 * @constructor
 	 */
@@ -144,7 +144,7 @@
 		 * @param e {EventData}
 		 *      Optional.
 		 *      An <code>EventData</code> object to be passed to all handlers.
-		 *      For DOM events, an existing W3C event object can be passed in.
+		 *      For DOM events, an existing W3C/jQuery event object can be passed in.
 		 * @param scope {Object}
 		 *      Optional.
 		 *      The scope ("this") within which the handler will be executed.
